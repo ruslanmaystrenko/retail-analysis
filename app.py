@@ -11,12 +11,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from shoplens.clean import SHOPS, clean, load
-from shoplens.forward import groups_next, pairs_next
+from shoplens.forward import groups_next, over_time, pairs_next
 from shoplens.market_basket import families, pairs, rules
 from shoplens.segmentation import GROUPS, by_group, group, profile, repeat_buying, scores, summarize
 
 WHITE, SILVER, GREY, JADE = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0"
-COLORS = dict(zip(GROUPS, [JADE, "#9fd9bd", WHITE, SILVER, "#c9a25a", GREY]))
+COLORS = dict(zip(GROUPS, ["#7fb4d8", JADE, "#9fd9bd", WHITE, SILVER, "#c9a25a", GREY]))
 PALETTE = [JADE, WHITE, "#c9a25a", "#9fd9bd", SILVER, "#e0787a", "#7fb4d8", GREY]
 NEEDED = {"order": "Order number", "customer": "Customer", "product": "Product code", "name": "Product name",
           "quantity": "Quantity", "price": "Price each", "when": "Date"}
@@ -51,6 +51,7 @@ def segment(sales):
 find_pairs = st.cache_data(pairs, show_spinner="Running the market basket analysis")
 check_groups = st.cache_data(groups_next, show_spinner="Checking the segments against later sales")
 check_pairs = st.cache_data(pairs_next, show_spinner="Checking the pairs against later sales")
+check_over_time = st.cache_data(over_time, show_spinner="Repeating the check at earlier cutoff days")
 
 # ---- Sidebar: which sales to look at -------------------------------------------------
 with st.sidebar:
@@ -79,7 +80,7 @@ tiles = st.columns(5)
 tiles[0].metric("Revenue", f"{sign}{sales.revenue.sum():,.0f}")
 tiles[1].metric("Customers", f"{len(customers):,}")
 tiles[2].metric("Orders", f"{sales.order.nunique():,}")
-tiles[3].metric("Best customers' share of spend", f"{groups.share_of_spend.get('Best customers', 0):.0%}")
+tiles[3].metric("Big spenders' share of spend", f"{groups.share_of_spend.get('Big spenders', 0):.0%}")
 tiles[4].metric("Product pairs found", f"{len(found):,}")
 
 overview, segments, quiet, basket, held = st.tabs(["Overview", "Customer Segmentation", "Going quiet", "Market Basket Analysis", "Did it hold up"])
@@ -99,7 +100,7 @@ with overview:
     st.dataframe(pd.Series(removed, name="Count").map("{:,.0f}".format), width="content")
 
 with segments:
-    st.subheader("Six segments, by how recently and how often customers buy")
+    st.subheader("Seven segments, by how recently, how often and how much customers buy")
     shares = groups[["share_of_customers", "share_of_spend"]].rename(columns={"share_of_customers": "Share of customers", "share_of_spend": "Share of spend"})
     fig = go.Figure([go.Bar(name=g, y=shares.columns, x=shares.loc[g], orientation="h", marker_color=COLORS[g],
                             text=[f"{v:.0%}" for v in shares.loc[g]], textposition="inside", insidetextfont_color="black") for g in shares.index])
@@ -114,12 +115,12 @@ with segments:
     left, right = st.columns(2)
     with left:
         st.subheader("How the segments are drawn")
-        st.caption("Every customer is scored 1 to 5 on recency and on frequency. The number is the customers in each square.")
+        st.caption("Every customer is scored 1 to 5 on recency and on frequency. The number is the customers in each square. Big spenders are the Best customers in the top twentieth by spend.")
         recent, often = scores(customers)
         count = pd.crosstab(recent, often)
-        owner = customers.groupby([recent, often])["group"].agg(lambda g: g.mode()[0]).unstack()
-        fig = go.Figure(go.Heatmap(z=owner.map(GROUPS.index).to_numpy(), x=count.columns, y=count.index, text=count.to_numpy(), texttemplate="%{text:,}",
-                                   textfont_color="black", colorscale=[[i / 5, COLORS[g]] for i, g in enumerate(GROUPS)], zmin=0, zmax=5, showscale=False,
+        owner = customers["group"].replace("Big spenders", "Best customers").groupby([recent, often]).agg(lambda g: g.mode()[0]).unstack()
+        fig = go.Figure(go.Heatmap(z=owner.map(GROUPS[1:].index).to_numpy(), x=count.columns, y=count.index, text=count.to_numpy(), texttemplate="%{text:,}",
+                                   textfont_color="black", colorscale=[[i / 5, COLORS[g]] for i, g in enumerate(GROUPS[1:])], zmin=0, zmax=5, showscale=False,
                                    xgap=3, ygap=3, customdata=owner.to_numpy(), hovertemplate="%{customdata}<extra></extra>"))
         chart(fig.update_xaxes(title="How often they buy (5 is most often)", dtick=1).update_yaxes(title="How recently (5 is most recent)", dtick=1), 400)
     with right:
@@ -203,3 +204,16 @@ with held:
     fig = go.Figure(go.Scatter(x=checked.lift, y=checked.lift_after.clip(lower=0.5), mode="markers", marker=dict(color=JADE, size=8),
                                text=checked.name_a.str.title() + " + " + checked.name_b.str.title(), hoverinfo="text"))
     chart(fig.add_hline(y=1, line_dash="dot", line_color=SILVER).update_xaxes(type="log", dtick=1, title="Lift before").update_yaxes(type="log", dtick=1, title="Lift after"), 360)
+
+    st.subheader("The same check at earlier cutoff days")
+    st.caption(f"One window could be luck. The check is repeated at cutoff days {days} days apart, as far back as the sales allow. Each dot is a separate check.")
+    checks = check_over_time(sales, days)
+    left, right = st.columns(2)
+    for place, column, title, axis in [(left, "came_back", "Share who ordered again", dict(tickformat=".0%")), (right, "average_spend_after", "Average spend afterward", dict(type="log", tickprefix=sign, dtick=1))]:
+        table = checks.pivot(index="cutoff", columns="group", values=column)
+        fig = go.Figure([go.Scatter(x=table.index, y=table[g], name=g, mode="lines+markers", line_color=COLORS[g]) for g in GROUPS if g in table])
+        with place:
+            st.markdown(f"**{title}**")
+            chart(fig.update_yaxes(**axis).update_xaxes(title="Cutoff day").update_layout(showlegend=column == "average_spend_after"), 360)
+    linked = checks[checks.group == "Pairs"]
+    st.caption(f"Strongest pairs still linked afterward: between {linked.came_back.min():.0%} and {linked.came_back.max():.0%} across {len(linked)} cutoff days.")

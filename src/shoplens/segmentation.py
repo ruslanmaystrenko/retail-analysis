@@ -7,10 +7,11 @@ The three things, as of a chosen day:
 """
 import pandas as pd
 
-GROUPS = ["Best customers", "Regulars", "New", "Occasional", "Going quiet", "Lost"]
+GROUPS = ["Big spenders", "Best customers", "Regulars", "New", "Occasional", "Going quiet", "Lost"]
 
 # What a shop would do with each group.
 ACTIONS = {
+    "Big spenders": "Know them by name. A direct contact, and a call if they go quiet.",
     "Best customers": "Keep them. Early access, a thank you, no discounts they do not need.",
     "Regulars": "Grow them. Suggest the products their group buys together.",
     "New": "Win the second order. A follow up within a few weeks of the first.",
@@ -43,6 +44,7 @@ def group(customers: pd.DataFrame) -> pd.Series:
     often they have bought, each score being a fifth of all customers. The
     names follow from the two scores:
 
+    * Big spenders: Best customers who are also in the top twentieth of all customers by spend
     * Best customers: bought recently and often
     * Regulars: bought fairly recently and fairly often
     * New: one order, placed recently
@@ -57,6 +59,7 @@ def group(customers: pd.DataFrame) -> pd.Series:
     name[(recent >= 4) & (customers["orders"] == 1)] = "New"
     name[(recent >= 3) & (often >= 3)] = "Regulars"
     name[(recent >= 4) & (often >= 4)] = "Best customers"
+    name[(name == "Best customers") & (customers["spend"] >= customers["spend"].quantile(0.95))] = "Big spenders"
     return name.rename("group")
 
 

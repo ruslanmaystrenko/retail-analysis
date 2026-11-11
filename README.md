@@ -18,11 +18,12 @@ The same code runs on three very different sets of sales.
 
 ## Customer segmentation
 
-Every customer is scored on how recently and how often they buy, then placed in one of six named segments: Best customers, Regulars, New, Occasional, Going quiet and Lost. Each segment comes with a profile and a next step.
+Every customer is scored on how recently and how often they buy, then placed in a named segment: Best customers, Regulars, New, Occasional, Going quiet or Lost. A seventh segment, Big spenders, holds the Best customers in the top twentieth by spend. Each segment comes with a profile and a next step.
 
-* **About a quarter of customers are Best customers at every shop.** They bring in 68 percent of spend at the gift shop, 55 percent at Amazon and 48 percent at the grocery chain.
+* **Big spenders are 4 percent of customers and 44 percent of revenue at the gift shop.** At Amazon they are 18 percent of spend and at the grocery chain 16.
+* **Big spenders and Best customers together are about a quarter of customers at every shop.** They bring in between half and two thirds of all spend.
 * **654 gift shop customers are going quiet.** They ordered several times, spent £733,000 between them, and have not been back in months. The app lists them.
-* **Clustering was tested against the named segments.** It sorted customers slightly better, because it found a small group of very large buyers. The named segments are kept because anyone can read the rules behind them. Notebook 2 shows the contest.
+* **Clustering was tested against the named segments, and improved them.** It found a group of very large buyers the first six segments missed. That became Big spenders, and the named segments now lead on spend. Notebook 2 shows the contest.
 
 ## Market basket analysis
 
@@ -38,18 +39,21 @@ Describing the past is easy. So the last 90 days of each shop were hidden, every
 
 | Segment at the cutoff | Gift shop | Amazon | Grocery |
 | --- | --- | --- | --- |
-| Best customers | 84% | 100% | 100% |
+| Big spenders | 99% | 100% | 100% |
+| Best customers | 81% | 100% | 100% |
 | Regulars | 64% | 99% | 99% |
-| Going quiet | 51% | 90% | 96% |
-| Occasional | 45% | 90% | 96% |
+| Going quiet | 51% | 89% | 96% |
+| Occasional | 45% | 90% | 97% |
 | New | 45% | | |
 | Lost | 34% | 63% | 82% |
 
 *Share of each segment that ordered again in the next 90 days.*
 
 * The segments ranked customers in the same order at all three shops.
-* At the gift shop the question is who comes back at all. At Amazon and the grocery chain nearly everyone does, and the segments matter for how much they spend.
+* At the gift shop the question is who comes back at all. At Amazon and the grocery chain nearly everyone does, and the segments matter for spend: a Big spender is worth thirteen to nineteen times a Lost customer.
 * All 50 of the strongest product pairs kept selling together, at every shop.
+
+**Then the check was repeated at earlier cutoff days**, 90 days apart: three for the gift shop, three for the grocery chain and eight for Amazon. The top segments kept their order at all fourteen. The gift shop's quiet summer lowered every number, and 45 of its 50 pairs held in that window.
 
 ## What cleaning found
 
@@ -67,10 +71,10 @@ On Windows, double click `ShopLens.bat`.
 Pick one of the three shops in the sidebar, or upload your own csv or Excel file and match seven columns. Every tab rebuilds for that data.
 
 * **Overview**: revenue by month, top products, what cleaning removed
-* **Customer Segmentation**: the six segments, how each one shops and what to do about it, repeat buying
+* **Customer Segmentation**: the seven segments, how each one shops and what to do about it, repeat buying
 * **Going quiet**: the customers worth contacting, sorted by spend
 * **Market Basket Analysis**: rules with support, confidence and lift, and the product families
-* **Did it hold up**: the forward check, with a choice of how many days to hold back
+* **Did it hold up**: the forward check, repeated at several cutoff days, with a choice of how many days to hold back
 
 ## How it is laid out
 
@@ -82,7 +86,7 @@ Pick one of the three shops in the sidebar, or upload your own csv or Excel file
 | `src/shoplens/forward.py` | The check against later sales |
 | `notebooks/` | Five notebooks: cleaning, customer segmentation, market basket analysis, the forward check, and all three shops side by side |
 | `app.py` | The app |
-| `tests/` | Eleven tests on a small made up shop |
+| `tests/` | Thirteen tests on a small made up shop |
 | `scripts/get_data.py` | How the Amazon and grocery files were built |
 | `REPORT.md` | The findings written up, with charts |
 | `original/` | The first version, untouched |

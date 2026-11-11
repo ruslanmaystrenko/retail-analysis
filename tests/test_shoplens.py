@@ -103,3 +103,19 @@ def test_profile_has_a_row_and_an_action_for_every_group():
     customers["group"] = group(customers)
     table = profile(sales, customers)
     assert set(table.index) == set(customers["group"]) and table["what_to_do"].notna().all()
+
+
+def test_big_spenders_are_best_customers_with_top_spend():
+    from shoplens.segmentation import group, summarize
+    customers = summarize(make_shop())
+    names = group(customers)
+    big = customers[names == "Big spenders"]
+    assert len(big) > 0 and big["spend"].min() >= customers["spend"].quantile(0.95)
+
+
+def test_check_repeats_at_earlier_cutoffs_only_with_enough_history():
+    from shoplens.forward import over_time
+    sales = make_shop()
+    checks = over_time(sales, days_held_back=60)
+    cutoffs = checks["cutoff"].unique()
+    assert len(cutoffs) >= 2 and (pd.Series(cutoffs) - sales["when"].min()).dt.days.min() >= 60

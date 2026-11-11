@@ -20,13 +20,13 @@ Rows for postage, bank charges and manual adjustments sat in the product list an
 
 Clustering produced three groups described by their averages. Nobody could say what to do with group 2.
 
-**Now:** a customer segmentation with six named segments, built from two simple scores: how recently a customer bought and how often. The rules fit in ten lines and anyone can check them. Clustering is still tested against them in notebook 2, and the result is reported as it came out.
+**Now:** a customer segmentation with seven named segments, built from simple scores: how recently a customer bought, how often, and for the top segment how much. The rules fit in a dozen lines and anyone can check them. Clustering is still tested against them in notebook 2. That test is where the seventh segment, Big spenders, came from.
 
 ## 4. Nothing was tested
 
 The first version described the past and stopped. There was no way to know whether the segments or the product rules meant anything going forward.
 
-**Now:** the last 90 days are held back. Segments and market basket pairs are built from the earlier sales and then measured on the later ones. The segments ranked who came back, and all 50 of the strongest pairs kept selling together.
+**Now:** the last 90 days are held back. Segments and market basket pairs are built from the earlier sales and then measured on the later ones. The segments ranked who came back, and all 50 of the strongest pairs kept selling together. The check is then repeated at earlier cutoff days, so the result does not rest on one window.
 
 ## 5. It was three notebooks, with nothing to use
 
