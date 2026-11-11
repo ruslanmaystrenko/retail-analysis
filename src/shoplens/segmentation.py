@@ -1,4 +1,4 @@
-"""Describe each customer by three things, then sort them into named groups.
+"""Customer segmentation: describe each customer by three things, then sort them into named groups.
 
 The three things, as of a chosen day:
 * days_since: days since their last order
@@ -9,6 +9,16 @@ import pandas as pd
 
 GROUPS = ["Best customers", "Regulars", "New", "Occasional", "Going quiet", "Lost"]
 
+# What a shop would do with each group.
+ACTIONS = {
+    "Best customers": "Keep them. Early access, a thank you, no discounts they do not need.",
+    "Regulars": "Grow them. Suggest the products their group buys together.",
+    "New": "Win the second order. A follow up within a few weeks of the first.",
+    "Occasional": "Low effort. Include in seasonal mailings.",
+    "Going quiet": "Contact now. They were good customers and half can still be won back.",
+    "Lost": "Do not spend much. One last offer, then stop.",
+}
+
 
 def summarize(sales: pd.DataFrame, as_of=None) -> pd.DataFrame:
     """One row per customer, using only sales up to `as_of`."""
@@ -17,6 +27,13 @@ def summarize(sales: pd.DataFrame, as_of=None) -> pd.DataFrame:
     table = past.groupby("customer").agg(last=("when", "max"), first=("when", "min"), orders=("order", "nunique"), spend=("revenue", "sum"))
     table["days_since"] = (as_of - table["last"]).dt.days
     return table
+
+
+def scores(customers: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Score every customer from 1 to 5 on recency and on frequency. 5 is the most recent or most frequent fifth."""
+    recent = pd.qcut(-customers["days_since"].rank(method="first"), 5, labels=False) + 1
+    often = pd.qcut(customers["orders"].rank(method="first"), 5, labels=False) + 1
+    return recent.rename("recent"), often.rename("often")
 
 
 def group(customers: pd.DataFrame) -> pd.Series:
@@ -33,8 +50,7 @@ def group(customers: pd.DataFrame) -> pd.Series:
     * Lost: few orders, long ago
     * Occasional: everyone else
     """
-    recent = pd.qcut(-customers["days_since"].rank(method="first"), 5, labels=False) + 1    # 5 is the most recent fifth
-    often = pd.qcut(customers["orders"].rank(method="first"), 5, labels=False) + 1          # 5 is the most frequent fifth
+    recent, often = scores(customers)
     name = pd.Series("Occasional", index=customers.index)
     name[(recent <= 2) & (often <= 2)] = "Lost"
     name[(recent <= 2) & (often >= 3)] = "Going quiet"
@@ -49,6 +65,21 @@ def by_group(customers: pd.DataFrame) -> pd.DataFrame:
     table = customers.groupby("group").agg(customers=("spend", "size"), spend=("spend", "sum"), typical_orders=("orders", "median"), typical_days_since=("days_since", "median"))
     table["share_of_customers"] = table["customers"] / table["customers"].sum()
     table["share_of_spend"] = table["spend"] / table["spend"].sum()
+    return table.reindex([g for g in GROUPS if g in table.index])
+
+
+def profile(sales: pd.DataFrame, customers: pd.DataFrame) -> pd.DataFrame:
+    """How each group shops: order size, products per order, and the three products it favors."""
+    lines = sales.assign(group=sales["customer"].map(customers["group"]))
+    orders = lines.groupby(["group", "order"]).agg(value=("revenue", "sum"), products=("product", "nunique"))
+    table = orders.groupby("group").agg(average_order=("value", "mean"), products_per_order=("products", "mean"))
+    table["orders_per_customer"] = customers.groupby("group")["orders"].mean()
+    # What each group spends a bigger share on than customers as a whole, among the 200 top selling products.
+    spend = lines.groupby(["group", "name"], observed=True)["revenue"].sum().unstack(0).fillna(0)
+    spend = spend.loc[spend.sum(axis=1).nlargest(200).index]
+    lean = (spend / spend.sum()).div(spend.sum(axis=1) / spend.sum().sum(), axis=0)
+    table["leans_toward"] = {g: ", ".join(lean[g].nlargest(3).index.str.title().str.strip()) for g in lean}
+    table["what_to_do"] = pd.Series(ACTIONS)
     return table.reindex([g for g in GROUPS if g in table.index])
 
 

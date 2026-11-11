@@ -1,23 +1,23 @@
-"""ShopLens: open a file of sales and see who the customers are, who is drifting away and what sells together.
+"""ShopLens: customer segmentation and market basket analysis for any file of sales.
 
 Run it with:  python -m streamlit run app.py
 """
 import sys
 sys.path.insert(0, "src")
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from shoplens.baskets import pairs
-from shoplens.clean import ONLINE_RETAIL, clean, load
-from shoplens.customers import GROUPS, by_group, group, repeat_buying, summarize
+from shoplens.clean import SHOPS, clean, load
 from shoplens.forward import groups_next, pairs_next
+from shoplens.market_basket import families, pairs, rules
+from shoplens.segmentation import GROUPS, by_group, group, profile, repeat_buying, scores, summarize
 
-WHITE, SILVER, GREY, JADE, RED = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0", "#e0787a"
+WHITE, SILVER, GREY, JADE = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0"
 COLORS = dict(zip(GROUPS, [JADE, "#9fd9bd", WHITE, SILVER, "#c9a25a", GREY]))
+PALETTE = [JADE, WHITE, "#c9a25a", "#9fd9bd", SILVER, "#e0787a", "#7fb4d8", GREY]
 NEEDED = {"order": "Order number", "customer": "Customer", "product": "Product code", "name": "Product name",
           "quantity": "Quantity", "price": "Price each", "when": "Date"}
 
@@ -32,88 +32,108 @@ def chart(fig, height=380):
 
 
 @st.cache_data(show_spinner="Reading and cleaning the sales")
-def prepare(file, columns):
-    return clean(load(file, columns) if isinstance(file, str) else read_upload(file, columns))
-
-
-def read_upload(file, columns):
+def prepare(file, columns, not_products):
+    if isinstance(file, str):
+        return clean(load(file), not_products)
     table = (pd.read_csv if file.name.endswith(".csv") else pd.read_excel)(file).rename(columns=columns)
     table["when"] = pd.to_datetime(table["when"])
-    table[["order", "product"]] = table[["order", "product"]].astype(str)
-    return table.assign(country=table.get("country", "Unknown"))
+    table[["order", "product", "name"]] = table[["order", "product", "name"]].astype(str)
+    return clean(table.assign(country="Unknown"))
 
 
-@st.cache_data(show_spinner="Sorting customers into groups")
-def describe(sales):
+@st.cache_data(show_spinner="Segmenting customers")
+def segment(sales):
     customers = summarize(sales)
     customers["group"] = group(customers)
-    return customers, by_group(customers), repeat_buying(sales)
+    return customers, by_group(customers), profile(sales, customers), repeat_buying(sales)
 
 
-find_pairs = st.cache_data(pairs, show_spinner="Finding products bought together")
-check_groups = st.cache_data(groups_next, show_spinner="Checking the groups against later sales")
+find_pairs = st.cache_data(pairs, show_spinner="Running the market basket analysis")
+check_groups = st.cache_data(groups_next, show_spinner="Checking the segments against later sales")
 check_pairs = st.cache_data(pairs_next, show_spinner="Checking the pairs against later sales")
 
 # ---- Sidebar: which sales to look at -------------------------------------------------
 with st.sidebar:
     st.title("ShopLens")
-    upload = st.file_uploader("Your sales file", type=["csv", "xlsx"], help="One row per product on an order. Leave empty to use the demo shop.")
-    columns = ONLINE_RETAIL
+    st.caption("Customer segmentation and market basket analysis")
+    picked_shop = st.selectbox("Demo shop", list(SHOPS))
+    upload = st.file_uploader("Or your own sales file", type=["csv", "xlsx"], help="One row per product on an order.")
     if upload:
         header = list((pd.read_csv if upload.name.endswith(".csv") else pd.read_excel)(upload, nrows=0).columns)
         upload.seek(0)
         st.caption("Match your columns")
         columns = {st.selectbox(label, header, index=min(i, len(header) - 1)): key for i, (key, label) in enumerate(NEEDED.items())}
+        sign = st.text_input("Currency sign", "$")
+        sales, removed = prepare(upload, columns, None)
     else:
-        st.caption("Showing the demo shop: a UK online gift retailer, December 2010 to December 2011.")
+        shop = SHOPS[picked_shop]
+        st.caption(shop["about"])
+        sign = shop["money"]
+        sales, removed = prepare(shop["file"], None, shop["not_products"])
 
-sales, removed = prepare(upload or "data/online_retail.parquet", columns)
-customers, groups, back = describe(sales)
+customers, groups, shopping, back = segment(sales)
+found = find_pairs(sales)
 
 # ---- Top line ------------------------------------------------------------------------
 tiles = st.columns(5)
-tiles[0].metric("Revenue", f"£{sales.revenue.sum():,.0f}")
+tiles[0].metric("Revenue", f"{sign}{sales.revenue.sum():,.0f}")
 tiles[1].metric("Customers", f"{len(customers):,}")
 tiles[2].metric("Orders", f"{sales.order.nunique():,}")
 tiles[3].metric("Best customers' share of spend", f"{groups.share_of_spend.get('Best customers', 0):.0%}")
-tiles[4].metric("Going quiet", f"{int(groups.customers.get('Going quiet', 0)):,}")
+tiles[4].metric("Product pairs found", f"{len(found):,}")
 
-overview, who, quiet, together, held = st.tabs(["Overview", "Customers", "Going quiet", "Bought together", "Did it hold up"])
+overview, segments, quiet, basket, held = st.tabs(["Overview", "Customer Segmentation", "Going quiet", "Market Basket Analysis", "Did it hold up"])
 
 with overview:
     left, right = st.columns([3, 2])
     with left:
         st.subheader("Revenue by month")
         monthly = sales.set_index("when")["revenue"].resample("MS").sum()
-        chart(go.Figure(go.Bar(x=monthly.index, y=monthly.values, marker_color=SILVER)).update_yaxes(tickprefix="£"))
+        chart(go.Figure(go.Bar(x=monthly.index, y=monthly.values, marker_color=SILVER)).update_yaxes(tickprefix=sign))
     with right:
         st.subheader("Top products")
         top = sales.groupby("name")["revenue"].sum().nlargest(10)[::-1]
-        chart(go.Figure(go.Bar(x=top.values, y=top.index.str.title().str[:32], orientation="h", marker_color=JADE)).update_xaxes(tickprefix="£"))
+        chart(go.Figure(go.Bar(x=top.values, y=top.index.str.title().str[:32], orientation="h", marker_color=JADE)).update_xaxes(tickprefix=sign))
     st.subheader("What cleaning removed")
     st.caption("Returns are taken off the sales they undo, so an order placed and then cancelled does not count as revenue.")
     st.dataframe(pd.Series(removed, name="Count").map("{:,.0f}".format), width="content")
 
-with who:
-    st.subheader("Six groups, by how recently and how often they buy")
+with segments:
+    st.subheader("Six segments, by how recently and how often customers buy")
     shares = groups[["share_of_customers", "share_of_spend"]].rename(columns={"share_of_customers": "Share of customers", "share_of_spend": "Share of spend"})
     fig = go.Figure([go.Bar(name=g, y=shares.columns, x=shares.loc[g], orientation="h", marker_color=COLORS[g],
                             text=[f"{v:.0%}" for v in shares.loc[g]], textposition="inside", insidetextfont_color="black") for g in shares.index])
     chart(fig.update_layout(barmode="stack", legend_orientation="h", legend_y=1.25, legend_traceorder="normal").update_xaxes(tickformat=".0%"), 240)
+
+    st.subheader("How each segment shops, and what to do about it")
+    table = shopping.join(groups[["customers"]])[["customers", "average_order", "products_per_order", "orders_per_customer", "what_to_do", "leans_toward"]]
+    st.dataframe(table.rename(columns={"customers": "Customers", "average_order": "Average order", "products_per_order": "Products per order",
+                                       "orders_per_customer": "Orders each", "leans_toward": "Leans toward", "what_to_do": "What to do"}).rename_axis("Segment"),
+                 width="stretch", column_config={"Average order": st.column_config.NumberColumn(format=f"{sign}%.0f"), "Products per order": st.column_config.NumberColumn(format="%.1f"),
+                                                 "Orders each": st.column_config.NumberColumn(format="%.1f")})
     left, right = st.columns(2)
     with left:
-        st.subheader("Every customer")
-        fig = px.scatter(customers.reset_index(), x="days_since", y="orders", size="spend", color="group", log_y=True, size_max=40,
-                         color_discrete_map=COLORS, category_orders={"group": GROUPS}, hover_data={"customer": True, "spend": ":,.0f"},
-                         labels={"days_since": "Days since last order", "orders": "Orders placed"})
-        chart(fig.update_traces(marker_line_width=0, opacity=0.6).update_yaxes(dtick=1), 440)
+        st.subheader("How the segments are drawn")
+        st.caption("Every customer is scored 1 to 5 on recency and on frequency. The number is the customers in each square.")
+        recent, often = scores(customers)
+        count = pd.crosstab(recent, often)
+        owner = customers.groupby([recent, often])["group"].agg(lambda g: g.mode()[0]).unstack()
+        fig = go.Figure(go.Heatmap(z=owner.map(GROUPS.index).to_numpy(), x=count.columns, y=count.index, text=count.to_numpy(), texttemplate="%{text:,}",
+                                   textfont_color="black", colorscale=[[i / 5, COLORS[g]] for i, g in enumerate(GROUPS)], zmin=0, zmax=5, showscale=False,
+                                   xgap=3, ygap=3, customdata=owner.to_numpy(), hovertemplate="%{customdata}<extra></extra>"))
+        chart(fig.update_xaxes(title="How often they buy (5 is most often)", dtick=1).update_yaxes(title="How recently (5 is most recent)", dtick=1), 400)
     with right:
         st.subheader("Do customers come back?")
         st.caption("Rows are the month of a customer's first order. Columns are months after it.")
-        grid = back.iloc[:-1, 1:12]
-        fig = px.imshow(grid.to_numpy(float), x=[str(c) for c in grid.columns], y=[str(m) for m in grid.index], zmin=0, zmax=0.5,
+        grid = back.iloc[:-1, 1:12].head(12)
+        fig = px.imshow(grid.to_numpy(float), x=[str(c) for c in grid.columns], y=[str(m) for m in grid.index], zmin=0, zmax=max(0.5, float(grid.max().max())),
                         color_continuous_scale=["black", JADE], text_auto=".0%", aspect="auto")
         chart(fig.update_coloraxes(showscale=False).update_xaxes(type="category").update_yaxes(type="category"), 400)
+    st.subheader("Every customer")
+    fig = px.scatter(customers.reset_index(), x="days_since", y="orders", size="spend", color="group", log_y=True, size_max=40,
+                     color_discrete_map=COLORS, category_orders={"group": GROUPS}, hover_data={"customer": True, "spend": ":,.0f"},
+                     labels={"days_since": "Days since last order", "orders": "Orders placed"})
+    chart(fig.update_traces(marker_line_width=0, opacity=0.6).update_yaxes(dtick=1), 440)
 
 with quiet:
     st.subheader("Customers worth contacting")
@@ -123,32 +143,46 @@ with quiet:
     shown = listed.assign(top_product=favourite.str.title(), last=listed["last"].dt.date)[["orders", "spend", "last", "days_since", "top_product"]]
     a, b, c = st.columns(3)
     a.metric("Customers", f"{len(listed):,}")
-    b.metric("Their spend so far", f"£{listed.spend.sum():,.0f}")
+    b.metric("Their spend so far", f"{sign}{listed.spend.sum():,.0f}")
     c.metric("Typical days since last order", f"{listed.days_since.median():.0f}")
     st.dataframe(shown.rename(columns={"orders": "Orders", "spend": "Spend", "last": "Last order", "days_since": "Days since", "top_product": "Bought most"}),
-                 width="stretch", height=520, column_config={"Spend": st.column_config.NumberColumn(format="£%.0f")})
+                 width="stretch", height=520, column_config={"Spend": st.column_config.NumberColumn(format=f"{sign}%.0f")})
 
-with together:
-    found = find_pairs(sales)
+with basket:
+    st.caption("Support is the share of all orders with both products. Confidence is the share of orders with the first that also have the second. "
+               "Lift is how many times more often than chance they sell together.")
     names = sorted(set(found.name_a.dropna()) | set(found.name_b.dropna()))
     picked = st.selectbox("Pick a product to see what sells with it", ["All products"] + names, format_func=str.title)
-    shown = found if picked == "All products" else found[(found.name_a == picked) | (found.name_b == picked)]
-    left, right = st.columns([3, 2])
+    listed = rules(found).sort_values("lift", ascending=False)
+    listed = listed if picked == "All products" else listed[listed.buys == picked]
+    st.subheader("Rules: customers who buy this also buy that")
+    table = listed.head(50).assign(buys=lambda t: t.buys.str.title().str.strip(), also_buys=lambda t: t.also_buys.str.title().str.strip())
+    st.dataframe(table.rename(columns={"buys": "Buys", "also_buys": "Also buys", "together": "Orders with both", "support": "Support", "confidence": "Confidence", "lift": "Lift"}),
+                 hide_index=True, width="stretch", height=390,
+                 column_config={"Support": st.column_config.NumberColumn(format="percent"), "Confidence": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
+                                "Lift": st.column_config.NumberColumn(format="%.0fx")})
+    left, right = st.columns([2, 3])
     with left:
-        st.subheader("Strongest pairs")
-        table = shown.head(25).assign(Pair=lambda t: t.name_a.str.title().str.strip() + "  +  " + t.name_b.str.title().str.strip())
-        st.dataframe(table[["Pair", "together", "chance_a_then_b", "lift"]].rename(columns={"together": "Orders with both", "chance_a_then_b": "Chance", "lift": "Lift"}),
-                     hide_index=True, width="stretch", height=460,
-                     column_config={"Pair": st.column_config.TextColumn(width="large"),
-                                    "Chance": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1, help="Of orders with the first product, the share that also have the second"),
-                                    "Lift": st.column_config.NumberColumn(format="%.0fx", help="How many times more often than chance")})
-    with right:
-        st.subheader("All pairs")
+        st.subheader("Every pair")
         st.caption("Up and to the right is best: bought together often, and far more than chance.")
+        near = found if picked == "All products" else found[(found.name_a == picked) | (found.name_b == picked)]
         fig = go.Figure(go.Scattergl(x=found.together, y=found.lift, mode="markers", marker=dict(color=GREY, size=4, opacity=0.35), hoverinfo="skip"))
-        fig.add_scattergl(x=shown.head(25).together, y=shown.head(25).lift, mode="markers", marker=dict(color=JADE, size=8),
-                          text=shown.head(25).name_a.str.title() + " + " + shown.head(25).name_b.str.title(), hoverinfo="text")
-        chart(fig.update_xaxes(type="log", dtick=1, title="Orders with both").update_yaxes(type="log", dtick=1, title="Times more than chance").update_layout(showlegend=False), 440)
+        fig.add_scattergl(x=near.head(25).together, y=near.head(25).lift, mode="markers", marker=dict(color=JADE, size=8),
+                          text=near.head(25).name_a.str.title() + " + " + near.head(25).name_b.str.title(), hoverinfo="text")
+        chart(fig.update_xaxes(type="log", dtick=1, title="Orders with both").update_yaxes(type="log", dtick=1, title="Lift").update_layout(showlegend=False), 560)
+    with right:
+        st.subheader("Product families")
+        st.caption("Products joined by their strongest pairs fall into families that sell together. Each one is a ready made bundle. Hover for names.")
+        spots = families(found, strongest=min(150, len(found))).set_index("name")
+        fig = go.Figure()
+        for a, b in zip(found.head(150).name_a, found.head(150).name_b):
+            if a in spots.index:
+                fig.add_scatter(x=[spots.x[a], spots.x[b]], y=[spots.y[a], spots.y[b]], mode="lines", line=dict(color="#55575c", width=1), hoverinfo="skip")
+        fig.add_scatter(x=spots.x, y=spots.y, mode="markers", text=spots.index.str.title(), hoverinfo="text",
+                        marker=dict(size=10 + 3 * spots.links, color=[PALETTE[(f - 1) % 8] for f in spots.family], line_width=0))
+        for number, members in spots.groupby("family"):
+            fig.add_annotation(x=(number - 1) % 4, y=-((number - 1) // 4) - 0.47, text=f"{members.index[0].title().strip()[:24]} ({len(members)})", showarrow=False, font_color=SILVER, font_size=11)
+        chart(fig.update_layout(showlegend=False).update_xaxes(visible=False, range=[-0.5, 3.5]).update_yaxes(visible=False), 560)
 
 with held:
     days = st.select_slider("Days held back", [30, 60, 90, 120], 90)
@@ -157,15 +191,15 @@ with held:
     each = table.drop("Everyone")
     left, right = st.columns(2)
     with left:
-        st.subheader("Share who ordered again")
+        st.subheader("Customer segments: share who ordered again")
         fig = go.Figure(go.Bar(x=each.index, y=each.came_back, marker_color=[COLORS[g] for g in each.index], text=[f"{v:.0%}" for v in each.came_back]))
         chart(fig.add_hline(y=table.loc["Everyone", "came_back"], line_dash="dot", line_color=SILVER, annotation_text="Everyone").update_yaxes(tickformat=".0%"))
     with right:
-        st.subheader("Average spend afterward")
-        chart(go.Figure(go.Bar(x=each.index, y=each.average_spend_after, marker_color=[COLORS[g] for g in each.index])).update_yaxes(tickprefix="£"))
+        st.subheader("Customer segments: average spend afterward")
+        chart(go.Figure(go.Bar(x=each.index, y=each.average_spend_after, marker_color=[COLORS[g] for g in each.index])).update_yaxes(tickprefix=sign))
     checked = check_pairs(sales, days)
     kept = int((checked.lift_after > 1).sum())
-    st.subheader(f"{kept} of the {len(checked)} strongest pairs kept selling together")
+    st.subheader(f"Market basket: {kept} of the {len(checked)} strongest pairs kept selling together")
     fig = go.Figure(go.Scatter(x=checked.lift, y=checked.lift_after.clip(lower=0.5), mode="markers", marker=dict(color=JADE, size=8),
                                text=checked.name_a.str.title() + " + " + checked.name_b.str.title(), hoverinfo="text"))
-    chart(fig.add_hline(y=1, line_dash="dot", line_color=SILVER).update_xaxes(type="log", dtick=1, title="Times more than chance, before").update_yaxes(type="log", dtick=1, title="After"), 360)
+    chart(fig.add_hline(y=1, line_dash="dot", line_color=SILVER).update_xaxes(type="log", dtick=1, title="Lift before").update_yaxes(type="log", dtick=1, title="Lift after"), 360)

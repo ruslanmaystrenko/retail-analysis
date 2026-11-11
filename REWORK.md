@@ -1,6 +1,6 @@
 # What changed and why
 
-The first version of this project (in `original/`) cleaned the data, clustered customers into three segments and ran association rules on baskets. It read well. Going back through it, five things did not hold.
+The first version of this project (in `original/`) cleaned the data, clustered customers into three segments and ran association rules on baskets. It read well. Going back through it, six things did not hold.
 
 ## 1. Cancelled orders were counted as sales
 
@@ -20,19 +20,25 @@ Rows for postage, bank charges and manual adjustments sat in the product list an
 
 Clustering produced three groups described by their averages. Nobody could say what to do with group 2.
 
-**Now:** six groups with plain names, built from two simple scores: how recently a customer bought and how often. The rules fit in ten lines and anyone can check them.
+**Now:** a customer segmentation with six named segments, built from two simple scores: how recently a customer bought and how often. The rules fit in ten lines and anyone can check them. Clustering is still tested against them in notebook 2, and the result is reported as it came out.
 
 ## 4. Nothing was tested
 
 The first version described the past and stopped. There was no way to know whether the segments or the product rules meant anything going forward.
 
-**Now:** the last 90 days are held back. Groups and pairs are built from the earlier sales and then measured on the later ones. The groups ranked who came back, and all 50 of the strongest pairs kept selling together.
+**Now:** the last 90 days are held back. Segments and market basket pairs are built from the earlier sales and then measured on the later ones. The segments ranked who came back, and all 50 of the strongest pairs kept selling together.
 
 ## 5. It was three notebooks, with nothing to use
 
 The work could be read and could not be run on another shop's data.
 
 **Now:** the logic is a small tested package, and an app sits on top of it. Upload a sales file and it produces the same analysis.
+
+## 6. One old dataset
+
+Everything rested on one gift shop from 2011.
+
+**Now:** the same code runs on two newer sets of sales: Amazon purchase histories from 2018 to 2022 and a year of grocery shopping. The findings carried over, and notebook 5 shows where the three shops differ.
 
 ## What stayed
 
