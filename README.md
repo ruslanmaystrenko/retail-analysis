@@ -4,7 +4,7 @@
 
 It answers three questions. Who are the customers and which ones matter? Who is drifting away? What sells together?
 
-This is a rebuild of an earlier project of mine. The first version is kept in `original/`, and [REWORK.md](REWORK.md) explains what was wrong with it and what changed.
+This is a rebuild of an earlier project of mine. The first version is kept in `original/`, and [REWORK.md](REWORK.md) explains what was wrong with it and what changed. The findings are written up in [REPORT.md](REPORT.md).
 
 ## Three shops, one method
 
@@ -84,6 +84,7 @@ Pick one of the three shops in the sidebar, or upload your own csv or Excel file
 | `app.py` | The app |
 | `tests/` | Eleven tests on a small made up shop |
 | `scripts/get_data.py` | How the Amazon and grocery files were built |
+| `REPORT.md` | The findings written up, with charts |
 | `original/` | The first version, untouched |
 
 ## Data
