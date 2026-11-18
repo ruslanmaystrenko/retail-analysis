@@ -86,7 +86,7 @@ tiles[2].metric("Orders", f"{sales.order.nunique():,}")
 tiles[3].metric("Big spenders' share of spend", f"{groups.share_of_spend.get('Big spenders', 0):.0%}")
 tiles[4].metric("Product pairs found", f"{len(found):,}")
 
-overview, segments, quiet, basket, held = st.tabs(["Overview", "Customer Segmentation", "Going quiet", "Market Basket Analysis", "Did it hold up"])
+overview, segments, quiet, basket, held = st.tabs(["Overview", "Customer Segmentation", "Going quiet", "Market Basket Analysis", "Testing the findings"])
 
 def colored(sentence, color):
     """Color the figures in a sentence. Bold phrases without a digit stay plain bold."""
@@ -236,8 +236,10 @@ with basket:
         chart(fig.update_layout(showlegend=False).update_xaxes(visible=False, range=[-0.5, 3.5]).update_yaxes(visible=False), 560)
 
 with held:
+    st.subheader("Can the segments and product pairs be trusted?")
+    st.markdown("The other tabs describe the past. This tab checks whether those descriptions predict what happens next, which is the only reason to act on them.")
     days = st.select_slider("Days hidden for the test", [30, 60, 90, 120], 90)
-    st.markdown(f"**How this test works.** Pretend today is {days} days before the data ends. The segments and product pairs are built using only the sales up to that day. "
+    st.markdown(f"**How the test works.** Pretend today is {days} days before the data ends. The segments and product pairs are built using only the sales up to that day. "
                 f"The {days} days that were hidden then show what those customers and products really did. "
                 "If Big spenders came back and spent far more than Lost customers, the segments were telling the truth.")
     st.caption("A longer window gives customers more time to return, so every bar rises. The order of the bars is what matters.")

@@ -74,7 +74,7 @@ Pick one of the three shops in the sidebar (it opens on Amazon), or upload your 
 * **Customer Segmentation**: the seven segments, how each one shops and what to do about it, repeat buying
 * **Going quiet**: the customers worth contacting, sorted by spend
 * **Market Basket Analysis**: rules with support, confidence and lift, and the product families
-* **Did it hold up**: the forward check, repeated at several cutoff days, with a choice of how many days to hold back
+* **Testing the findings**: the forward check, repeated at several cutoff days, with a choice of how many days to hold back
 
 ## How it is laid out
 
