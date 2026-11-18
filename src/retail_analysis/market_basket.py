@@ -39,6 +39,18 @@ def pairs(sales: pd.DataFrame, top_products: int = 500, min_orders_together: int
     return table.sort_values("lift", ascending=False).reset_index(drop=True)
 
 
+def baseline_lift(sales: pd.DataFrame) -> float:
+    """The lift two unrelated products would show in this shop, purely because some orders are much bigger than others.
+
+    A large order holds many products, so any two of them land together more
+    often than the simple "chance" in the lift formula allows for. This works
+    out the lift you would see if the same products were dealt at random into
+    orders of the same sizes. A pair is only interesting well above this.
+    """
+    sizes = sales.drop_duplicates(["order", "product"]).groupby("order").size()
+    return float(len(sizes) * (sizes * (sizes - 1)).sum() / sizes.sum() ** 2)
+
+
 def rules(found: pd.DataFrame) -> pd.DataFrame:
     """Turn pairs into rules that read "customers who buy this also buy that".
 

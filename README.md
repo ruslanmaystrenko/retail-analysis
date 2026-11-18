@@ -51,9 +51,9 @@ Describing the past is easy. So the last 90 days of each shop were hidden, every
 
 * The segments ranked customers in the same order at all three shops.
 * At the gift shop the question is who comes back at all. At Amazon and the grocery chain nearly everyone does, and the segments matter for spend: a Big spender is worth thirteen to nineteen times a Lost customer.
-* All 50 of the strongest product pairs kept selling together, at every shop.
+* All 50 of the strongest product pairs kept selling together, at every shop. To count, a pair had to sell together at least twice as often as random baskets of the same sizes would.
 
-**Then the check was repeated at earlier cutoff days**, 90 days apart: three for the gift shop, three for the grocery chain and eight for Amazon. The top segments kept their order at all fourteen. The gift shop's quiet summer lowered every number, and 45 of its 50 pairs held in that window.
+**Then the check was repeated at earlier cutoff days**, 90 days apart: three for the gift shop, three for the grocery chain and eight for Amazon. The top segments kept their order at all fourteen. The gift shop's quiet summer lowered every number. The pairs slipped twice, to 45 of 50: in that summer window and in Amazon's earliest one.
 
 ## What cleaning found
 
@@ -86,7 +86,7 @@ Pick one of the three shops in the sidebar (it opens on Amazon), or upload your 
 | `src/retail_analysis/forward.py` | The check against later sales |
 | `notebooks/` | Five notebooks: cleaning, customer segmentation, market basket analysis, the forward check, and all three shops side by side |
 | `app.py` | The app |
-| `tests/` | Thirteen tests on a small made up shop |
+| `tests/` | Sixteen tests on a small made up shop |
 | `scripts/get_data.py` | How the Amazon and grocery files were built |
 | `REPORT.md` | The findings written up, with charts |
 | `original/` | The first version, untouched |

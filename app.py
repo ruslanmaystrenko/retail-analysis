@@ -13,12 +13,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from retail_analysis.clean import SHOPS, clean, load
-from retail_analysis.forward import groups_next, over_time, pairs_next
-from retail_analysis.market_basket import families, pairs, rules
+from retail_analysis.forward import groups_next, over_time, pairs_next, still_linked, verdicts
+from retail_analysis.market_basket import baseline_lift, families, pairs, rules
 from retail_analysis.summary import best_month, summarize_shop
 from retail_analysis.segmentation import GROUPS, by_group, group, profile, repeat_buying, scores, summarize
 
-WHITE, SILVER, GREY, JADE, GOLD = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0", "#e3b341"
+WHITE, SILVER, GREY, JADE, GOLD, CORAL = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0", "#e3b341", "#ff7b72"
 COLORS = dict(zip(GROUPS, ["#7fb4d8", JADE, "#9fd9bd", WHITE, SILVER, "#c9a25a", GREY]))
 PALETTE = [JADE, WHITE, "#c9a25a", "#9fd9bd", SILVER, "#e0787a", "#7fb4d8", GREY]
 NEEDED = {"order": "Order number", "customer": "Customer", "product": "Product code", "name": "Product name",
@@ -95,7 +95,7 @@ def colored(sentence, color):
 
 
 with overview:
-    words = summarize_shop(sales, customers, groups, found, check_groups(sales, 90), (check_pairs(sales, 90).lift_after > 1).mean(), sign)
+    words = summarize_shop(sales, customers, groups, found, check_groups(sales, 90), still_linked(check_pairs(sales, 90)).mean(), sign)
     left, right = st.columns(2)
     with left:
         st.subheader("What we learned")
@@ -201,7 +201,8 @@ with quiet:
 
 with basket:
     st.caption("Support is the share of all orders with both products. Confidence is the share of orders with the first that also have the second. "
-               "Lift is how many times more often than chance they sell together.")
+               "Lift is how many times more often than chance they sell together. "
+               f"Big orders push every lift up a little: two unrelated products in this shop would show a lift of about {baseline_lift(sales):.1f}, so look for pairs far above that.")
     names = sorted(set(found.name_a.dropna()) | set(found.name_b.dropna()))
     picked = st.selectbox("Pick a product to see what sells with it", ["All products"] + names, format_func=str.title)
     listed = rules(found).sort_values("lift", ascending=False)
@@ -245,6 +246,20 @@ with held:
     st.caption("A longer window gives customers more time to return, so every bar rises. The order of the bars is what matters.")
     table = check_groups(sales, days)
     each = table.drop("Everyone")
+    checked = check_pairs(sales, days)
+    checks = check_over_time(sales, days)
+
+    tests = verdicts(table, checked, checks, sign)
+    passed = sum(t["passed"] for t in tests)
+    color = JADE if passed == len(tests) else GOLD if passed >= len(tests) / 2 else CORAL
+    answer = "Yes, on this data." if passed == len(tests) else "Partly. Read the failed tests before relying on them." if passed >= len(tests) / 2 else "No, not on this data."
+    st.markdown(f"<p style='font-size:22px'><b style='color:{color}'>{passed} of {len(tests)} tests passed.</b> {answer}</p>", unsafe_allow_html=True)
+    cards = "".join(
+        f"<div style='border:1px solid #232527;border-left:3px solid {JADE if t['passed'] else CORAL};border-radius:8px;padding:12px 14px'>"
+        f"<b style='color:{JADE if t['passed'] else CORAL}'>{'PASSED' if t['passed'] else 'FAILED'}</b> &nbsp; <b>{t['test']}</b>"
+        f"<div style='color:{GREY};font-size:13px;margin-top:4px'>To pass: {t['rule']}</div><div style='margin-top:4px'>{t['result']}</div></div>" for t in tests)
+    st.markdown(f"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-bottom:18px'>{cards}</div>", unsafe_allow_html=True)
+
     left, right = st.columns(2)
     with left:
         st.subheader("Customer segments: share who ordered again")
@@ -253,16 +268,15 @@ with held:
     with right:
         st.subheader("Customer segments: average spend afterward")
         chart(go.Figure(go.Bar(x=each.index, y=each.average_spend_after, marker_color=[COLORS[g] for g in each.index])).update_yaxes(tickprefix=sign))
-    checked = check_pairs(sales, days)
-    kept = int((checked.lift_after > 1).sum())
+    kept, bar = int(still_linked(checked).sum()), 2 * checked.baseline_after.iloc[0]
     st.subheader(f"Market basket: {kept} of the {len(checked)} strongest pairs kept selling together")
     fig = go.Figure(go.Scatter(x=checked.lift, y=checked.lift_after.clip(lower=0.5), mode="markers", marker=dict(color=JADE, size=8),
                                text=checked.name_a.str.title() + " + " + checked.name_b.str.title(), hoverinfo="text"))
-    chart(fig.add_hline(y=1, line_dash="dot", line_color=SILVER).update_xaxes(type="log", dtick=1, title="Lift before").update_yaxes(type="log", dtick=1, title="Lift after"), 360)
+    st.caption(f"Each dot is a pair. To count as still linked, a pair must sit above the dotted line: twice the lift that random baskets give in this shop, which is about {bar / 2:.1f}.")
+    chart(fig.add_hline(y=bar, line_dash="dot", line_color=SILVER).update_xaxes(type="log", dtick=1, title="Lift before").update_yaxes(type="log", dtick=1, title="Lift after"), 360)
 
     st.subheader("The same check at earlier cutoff days")
     st.caption(f"One window could be luck. The check is repeated at cutoff days {days} days apart, as far back as the sales allow. Each dot is a separate check.")
-    checks = check_over_time(sales, days)
     left, right = st.columns(2)
     for place, column, title, axis in [(left, "came_back", "Share who ordered again", dict(tickformat=".0%")), (right, "average_spend_after", "Average spend afterward", dict(type="log", tickprefix=sign, dtick=1))]:
         table = checks.pivot(index="cutoff", columns="group", values=column)

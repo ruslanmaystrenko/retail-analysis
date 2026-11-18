@@ -132,3 +132,19 @@ def test_summary_writes_findings_and_actions_from_the_numbers():
     words = summarize_shop(sales, customers, by_group(customers), pairs(sales, min_orders_together=5), groups_next(sales, 120), 1.0, "$")
     assert len(words["learned"]) >= 4 and len(words["actions"]) >= 2
     assert all("nan" not in line for line in words["learned"] + words["actions"])
+
+
+def test_verdicts_pass_on_a_shop_where_the_segments_are_real():
+    from retail_analysis.forward import groups_next, over_time, pairs_next, verdicts
+    sales = make_shop()
+    tests = verdicts(groups_next(sales, 60), pairs_next(sales, 60), over_time(sales, 60))
+    assert len(tests) == 4 and all(isinstance(t["passed"], bool) for t in tests)
+    assert tests[2]["passed"]                      # jars and lids keep selling together
+
+
+def test_big_orders_raise_the_lift_of_unrelated_products():
+    from retail_analysis.market_basket import baseline_lift
+    line = lambda order, product: (order, 1, product, product, 1, 1.0, "2011-01-01")
+    even = rows(*[line(f"o{i}", p) for i in range(10) for p in ("A", "B")])
+    lumpy = rows(*[line(f"o{i}", "A") for i in range(9)], *[line("big", p) for p in "ABCDEFGHIJK"])
+    assert baseline_lift(lumpy) > baseline_lift(even)

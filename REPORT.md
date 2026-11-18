@@ -19,7 +19,7 @@ The same code ran on three very different businesses, with no changes between th
 | --- | --- | --- | --- | --- | --- |
 | UK gift retailer | 2010 to 2011 | 4,324 | 18,268 | £453 | 21 |
 | Amazon shoppers | 2018 to 2022 | 5,013 | 749,808 | $52 | 1.9 |
-| US grocery chain | 2017 | 2,467 | 140,925 | $30 | 8.7 |
+| US grocery chain | One year | 2,467 | 140,925 | $30 | 8.7 |
 
 The gift shop sells mostly to other businesses, in a few large orders a year. The Amazon data is the order history of US shoppers who shared it for a research study. The grocery data follows households through a year of weekly shopping.
 
@@ -53,6 +53,8 @@ The segment to act on is Going quiet: people who bought often and have stopped. 
 
 For every pair of products the analysis measures how often they share an order and how much more often than chance. That second number is lift. Linked products are then grouped into families.
 
+One caution on reading lift. Large orders hold many products, so even unrelated products show a lift of about 2 at the gift shop and the grocery chain, and 1.3 at Amazon. The pairs below sit far above that.
+
 | Shop | Strongest pairs | Lift |
 | --- | --- | --- |
 | UK gift retailer | Green tea plate with pink tea plate | 61x |
@@ -81,7 +83,7 @@ Describing the past proves little. So the last 90 days of each shop were hidden.
 * **At the gift shop the segments predict who returns.** Nearly every Big spender ordered again, then 81 percent of Best customers, down to 34 percent of Lost.
 * **At Amazon and the grocery chain they predict spend.** Nearly everyone returns to a shop they use by habit. A Big spender still spent thirteen to nineteen times what a Lost customer did.
 * **Going quiet can be won back.** Half of the gift shop's Going quiet customers ordered again.
-* **The product pairs were stable.** All 50 of the strongest pairs were still linked afterward, at every shop.
+* **The product pairs were stable.** All 50 of the strongest pairs were still linked afterward, at every shop. Linked means sold together at least twice as often as random baskets of the same sizes would.
 
 ## 5. Was it one lucky window?
 
@@ -94,7 +96,7 @@ The last 90 days of the gift shop's data are its busiest season, so one check pr
 * **Amazon and the grocery chain gave the same answer every time.** The lines run flat and never cross.
 * **The gift shop's quiet season lowered everything and changed nothing at the top.** After the June cutoff 48 percent of customers came back, against 57 percent in the busy season. Big spenders, Best customers and Regulars kept their order.
 * **The three weakest segments blur together.** New, Occasional and Lost customers at the gift shop sit close and trade places.
-* **The product pairs slipped once.** In the gift shop's summer window 45 of the 50 strongest pairs stayed linked. Every other check kept all 50.
+* **The product pairs slipped twice.** In the gift shop's summer window and in Amazon's earliest one, 45 of the 50 strongest pairs stayed linked. Every other check kept all 50.
 
 ## 6. How clustering improved the segments
 
