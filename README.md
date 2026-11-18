@@ -14,7 +14,7 @@ The same code runs on three very different sets of sales.
 | --- | --- | --- | --- | --- |
 | UK gift retailer | 2010 to 2011 | 4,324 | 18,268 | A single item |
 | Amazon shoppers | 2018 to 2022 | 5,013 | 749,808 | A category, such as pet food |
-| US grocery chain | One year | 2,467 | 140,925 | A type, such as bananas |
+| US grocery chain | 2017 | 2,467 | 140,925 | A type, such as bananas |
 
 ## Customer segmentation
 
@@ -68,9 +68,9 @@ python -m streamlit run app.py
 
 On Windows, double click `RetailAnalysis.bat`.
 
-Pick one of the three shops in the sidebar, or upload your own csv or Excel file and match seven columns. Every tab rebuilds for that data.
+Pick one of the three shops in the sidebar (it opens on Amazon), or upload your own csv or Excel file and match seven columns. Every tab rebuilds for that data.
 
-* **Overview**: revenue by month, top products, what cleaning removed
+* **Overview**: what was learned and what to do about it, written from the data, then revenue by month, top products and who is buying
 * **Customer Segmentation**: the seven segments, how each one shops and what to do about it, repeat buying
 * **Going quiet**: the customers worth contacting, sorted by spend
 * **Market Basket Analysis**: rules with support, confidence and lift, and the product families
@@ -95,4 +95,4 @@ Pick one of the three shops in the sidebar, or upload your own csv or Excel file
 
 * [Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail), UCI Machine Learning Repository, by Daqing Chen. CC BY 4.0.
 * [Open e-commerce 1.0](https://doi.org/10.7910/DVN/YGLYDY): Amazon purchase histories shared by 5,027 US shoppers. CC0. Cut off at October 2022, when shoppers began exporting their histories. It has no order numbers, so one shopper on one day counts as one order.
-* [The Complete Journey](https://github.com/bradleyboehmke/completejourney): household shopping at a US grocery chain, from 84.51°. CC0. The publisher shifted the dates to 2017. Fuel is left out.
+* [The Complete Journey](https://github.com/bradleyboehmke/completejourney): household shopping at a US grocery chain, from 84.51°. CC0. The chain is not named. The publisher shifted the dates, so 2017 is a label. Fuel is left out.

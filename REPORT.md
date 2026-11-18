@@ -19,7 +19,7 @@ The same code ran on three very different businesses, with no changes between th
 | --- | --- | --- | --- | --- | --- |
 | UK gift retailer | 2010 to 2011 | 4,324 | 18,268 | £453 | 21 |
 | Amazon shoppers | 2018 to 2022 | 5,013 | 749,808 | $52 | 1.9 |
-| US grocery chain | One year | 2,467 | 140,925 | $30 | 8.7 |
+| US grocery chain | 2017 | 2,467 | 140,925 | $30 | 8.7 |
 
 The gift shop sells mostly to other businesses, in a few large orders a year. The Amazon data is the order history of US shoppers who shared it for a research study. The grocery data follows households through a year of weekly shopping.
 

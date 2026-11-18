@@ -119,3 +119,16 @@ def test_check_repeats_at_earlier_cutoffs_only_with_enough_history():
     checks = over_time(sales, days_held_back=60)
     cutoffs = checks["cutoff"].unique()
     assert len(cutoffs) >= 2 and (pd.Series(cutoffs) - sales["when"].min()).dt.days.min() >= 60
+
+
+def test_summary_writes_findings_and_actions_from_the_numbers():
+    from retail_analysis.forward import groups_next
+    from retail_analysis.market_basket import pairs
+    from retail_analysis.segmentation import by_group, group, summarize
+    from retail_analysis.summary import summarize_shop
+    sales = make_shop()
+    customers = summarize(sales)
+    customers["group"] = group(customers)
+    words = summarize_shop(sales, customers, by_group(customers), pairs(sales, min_orders_together=5), groups_next(sales, 120), 1.0, "$")
+    assert len(words["learned"]) >= 4 and len(words["actions"]) >= 2
+    assert all("nan" not in line for line in words["learned"] + words["actions"])

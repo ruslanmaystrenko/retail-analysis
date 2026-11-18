@@ -16,8 +16,9 @@ SHOPS = {
         about="A UK online gift shop selling mostly to other businesses. Each product is a single item."),
     "Amazon shoppers, 2018 to 2022": dict(file="data/amazon_shoppers.parquet", money="$", not_products=None,
         about="5,013 US shoppers who shared their Amazon order history. A product here is a category, such as pet food."),
-    "US grocery chain, one year": dict(file="data/grocery_chain.parquet", money="$", not_products=None,
-        about="2,467 households at a US grocery chain. A product here is a type, such as bananas. The publisher shifted the dates to 2017."),
+    "US grocery chain, 2017": dict(file="data/grocery_chain.parquet", money="$", not_products=None,
+        about="A full year of shopping by 2,467 households at a large US grocery chain, published by the retail data firm 84.51°. "
+              "The chain is not named, and the publisher shifted the dates, so 2017 is a label. A product here is a type, such as bananas."),
 }
 
 

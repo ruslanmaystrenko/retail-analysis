@@ -5,6 +5,8 @@ Run it with:  python -m streamlit run app.py
 import sys
 sys.path.insert(0, "src")
 
+import re
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -13,9 +15,10 @@ import streamlit as st
 from retail_analysis.clean import SHOPS, clean, load
 from retail_analysis.forward import groups_next, over_time, pairs_next
 from retail_analysis.market_basket import families, pairs, rules
+from retail_analysis.summary import best_month, summarize_shop
 from retail_analysis.segmentation import GROUPS, by_group, group, profile, repeat_buying, scores, summarize
 
-WHITE, SILVER, GREY, JADE = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0"
+WHITE, SILVER, GREY, JADE, GOLD = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0", "#e3b341"
 COLORS = dict(zip(GROUPS, ["#7fb4d8", JADE, "#9fd9bd", WHITE, SILVER, "#c9a25a", GREY]))
 PALETTE = [JADE, WHITE, "#c9a25a", "#9fd9bd", SILVER, "#e0787a", "#7fb4d8", GREY]
 NEEDED = {"order": "Order number", "customer": "Customer", "product": "Product code", "name": "Product name",
@@ -57,7 +60,7 @@ check_over_time = st.cache_data(over_time, show_spinner="Repeating the check at 
 with st.sidebar:
     st.title("Retail Analysis")
     st.caption("Customer segmentation and market basket analysis")
-    picked_shop = st.selectbox("Demo shop", list(SHOPS))
+    picked_shop = st.selectbox("Demo shop", sorted(SHOPS, key=lambda name: ["Amazon", "US", "UK"].index(name.split()[0])))
     upload = st.file_uploader("Or your own sales file", type=["csv", "xlsx"], help="One row per product on an order.")
     if upload:
         header = list((pd.read_csv if upload.name.endswith(".csv") else pd.read_excel)(upload, nrows=0).columns)
@@ -85,19 +88,66 @@ tiles[4].metric("Product pairs found", f"{len(found):,}")
 
 overview, segments, quiet, basket, held = st.tabs(["Overview", "Customer Segmentation", "Going quiet", "Market Basket Analysis", "Did it hold up"])
 
+def colored(sentence, color):
+    """Color the figures in a sentence. Bold phrases without a digit stay plain bold."""
+    paint = lambda m: f"<b style='color:{color}'>{m.group(1)}</b>" if any(ch.isdigit() for ch in m.group(1)) else f"<b>{m.group(1)}</b>"
+    return re.sub(r"\*\*(.+?)\*\*", paint, sentence)
+
+
 with overview:
+    words = summarize_shop(sales, customers, groups, found, check_groups(sales, 90), (check_pairs(sales, 90).lift_after > 1).mean(), sign)
+    left, right = st.columns(2)
+    with left:
+        st.subheader("What we learned")
+        st.markdown("".join(f"<p>{colored(line, JADE)}</p>" for line in words["learned"]), unsafe_allow_html=True)
+    with right:
+        st.subheader("What to do about it")
+        st.markdown("".join(f"<p>{number}. {colored(line, GOLD)}</p>" for number, line in enumerate(words["actions"], 1)), unsafe_allow_html=True)
+    st.divider()
+
     left, right = st.columns([3, 2])
     with left:
         st.subheader("Revenue by month")
         monthly = sales.set_index("when")["revenue"].resample("MS").sum()
-        chart(go.Figure(go.Bar(x=monthly.index, y=monthly.values, marker_color=SILVER)).update_yaxes(tickprefix=sign))
+        best, _ = best_month(sales)
+        fig = go.Figure(go.Bar(x=monthly.index, y=monthly.values, marker_color=[GOLD if month == best else SILVER for month in monthly.index], hovertemplate=sign + "%{y:,.0f}<extra></extra>"))
+        fig.add_hline(y=monthly.median(), line_dash="dot", line_color=GREY, annotation_text="Typical month", annotation_font_color=SILVER, annotation_position="top left")
+        fig.add_annotation(x=best, y=monthly[best], text=f"Best month: {best:%b %Y}<br>{sign}{monthly[best]:,.0f}", font_color=GOLD, showarrow=False, yshift=22)
+        chart(fig.update_yaxes(tickprefix=sign))
     with right:
         st.subheader("Top products")
+        st.caption("Revenue, and each product's share of all revenue.")
         top = sales.groupby("name")["revenue"].sum().nlargest(10)[::-1]
-        chart(go.Figure(go.Bar(x=top.values, y=top.index.str.title().str[:32], orientation="h", marker_color=JADE)).update_xaxes(tickprefix=sign))
-    st.subheader("What cleaning removed")
-    st.caption("Returns are taken off the sales they undo, so an order placed and then cancelled does not count as revenue.")
-    st.dataframe(pd.Series(removed, name="Count").map("{:,.0f}".format), width="content")
+        fig = go.Figure(go.Bar(x=top.values, y=top.index.str.title().str[:32], orientation="h", text=[f"{sign}{v:,.0f}  ·  {v / sales.revenue.sum():.1%}" for v in top.values],
+                               textposition="outside", textfont_color=SILVER, cliponaxis=False, marker_color=[JADE] * 9 + [GOLD], hovertemplate=sign + "%{x:,.0f}<extra></extra>"))
+        chart(fig.update_xaxes(tickprefix=sign, range=[0, top.max() * 1.7]), 360)
+
+    left, right = st.columns([3, 2])
+    with left:
+        first = sales.groupby("customer")["when"].transform("min").dt.to_period("M")
+        month = sales["when"].dt.to_period("M")
+        if sales.loc[month == first, "revenue"].sum() >= 0.05 * sales["revenue"].sum():
+            st.subheader("New and returning customers")
+            st.caption("Each month's revenue, split by whether the customer's first order was that month.")
+            split = sales.groupby([month.dt.to_timestamp(), (month == first).map({True: "New", False: "Returning"})])["revenue"].sum().unstack(fill_value=0)
+            fig = go.Figure([go.Bar(x=split.index, y=split[name], name=name, marker_color=color, hovertemplate=sign + "%{y:,.0f}") for name, color in [("Returning", SILVER), ("New", JADE)]])
+            chart(fig.update_layout(barmode="stack", legend_orientation="h", legend_y=1.12).update_yaxes(tickprefix=sign), 340)
+        else:   # the same customers throughout, so show how many of them buy each month
+            st.subheader("Customers buying each month")
+            st.caption("How many different customers placed at least one order.")
+            active = sales.groupby(month.dt.to_timestamp())["customer"].nunique()
+            fig = go.Figure(go.Bar(x=active.index, y=active.values, marker_color=[GOLD if m == active.idxmax() else SILVER for m in active.index], hovertemplate="%{y:,} customers<extra></extra>"))
+            chart(fig, 340)
+    with right:
+        st.subheader("Revenue by day of the week")
+        weekdays = sales.groupby(sales["when"].dt.day_name())["revenue"].sum().reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]).fillna(0)
+        fig = go.Figure(go.Bar(x=weekdays.index.str[:3], y=weekdays.values, marker_color=[GOLD if day == weekdays.idxmax() else SILVER for day in weekdays.index],
+                               text=[f"{v / weekdays.sum():.0%}" for v in weekdays.values], textposition="outside", hovertemplate=sign + "%{y:,.0f}<extra></extra>"))
+        chart(fig.update_yaxes(tickprefix=sign), 340)
+
+    with st.expander("What cleaning removed"):
+        st.caption("Returns are taken off the sales they undo, so an order placed and then cancelled does not count as revenue.")
+        st.dataframe(pd.Series(removed, name="Count").map("{:,.0f}".format), width="content")
 
 with segments:
     st.subheader("Seven segments, by how recently, how often and how much customers buy")
@@ -186,8 +236,11 @@ with basket:
         chart(fig.update_layout(showlegend=False).update_xaxes(visible=False, range=[-0.5, 3.5]).update_yaxes(visible=False), 560)
 
 with held:
-    days = st.select_slider("Days held back", [30, 60, 90, 120], 90)
-    st.caption(f"Everything is rebuilt from sales before the last {days} days. Those {days} days then show whether it meant anything.")
+    days = st.select_slider("Days hidden for the test", [30, 60, 90, 120], 90)
+    st.markdown(f"**How this test works.** Pretend today is {days} days before the data ends. The segments and product pairs are built using only the sales up to that day. "
+                f"The {days} days that were hidden then show what those customers and products really did. "
+                "If Big spenders came back and spent far more than Lost customers, the segments were telling the truth.")
+    st.caption("A longer window gives customers more time to return, so every bar rises. The order of the bars is what matters.")
     table = check_groups(sales, days)
     each = table.drop("Everyone")
     left, right = st.columns(2)
