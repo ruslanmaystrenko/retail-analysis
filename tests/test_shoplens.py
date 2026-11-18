@@ -1,10 +1,10 @@
 import pandas as pd
 import pytest
 
-from shoplens.market_basket import pairs
-from shoplens.clean import clean
-from shoplens.segmentation import group, repeat_buying, summarize
-from shoplens.forward import groups_next
+from retail_analysis.market_basket import pairs
+from retail_analysis.clean import clean
+from retail_analysis.segmentation import group, repeat_buying, summarize
+from retail_analysis.forward import groups_next
 
 
 def rows(*lines):
@@ -82,13 +82,13 @@ def test_forward_check_separates_what_was_known_from_what_came_next():
 
 
 def test_pairs_are_measured_again_on_later_sales():
-    from shoplens.forward import pairs_next
+    from retail_analysis.forward import pairs_next
     checked = pairs_next(make_shop(), days_held_back=120, top=1)
     assert checked["lift_after"].iloc[0] > 1      # jars and lids keep selling together
 
 
 def test_rules_read_both_ways_and_families_group_linked_products():
-    from shoplens.market_basket import families, pairs, rules
+    from retail_analysis.market_basket import families, pairs, rules
     found = pairs(make_shop(), min_orders_together=5)
     both_ways = rules(found)
     assert len(both_ways) == 2 * len(found)
@@ -97,7 +97,7 @@ def test_rules_read_both_ways_and_families_group_linked_products():
 
 
 def test_profile_has_a_row_and_an_action_for_every_group():
-    from shoplens.segmentation import group, profile, summarize
+    from retail_analysis.segmentation import group, profile, summarize
     sales = make_shop()
     customers = summarize(sales)
     customers["group"] = group(customers)
@@ -106,7 +106,7 @@ def test_profile_has_a_row_and_an_action_for_every_group():
 
 
 def test_big_spenders_are_best_customers_with_top_spend():
-    from shoplens.segmentation import group, summarize
+    from retail_analysis.segmentation import group, summarize
     customers = summarize(make_shop())
     names = group(customers)
     big = customers[names == "Big spenders"]
@@ -114,7 +114,7 @@ def test_big_spenders_are_best_customers_with_top_spend():
 
 
 def test_check_repeats_at_earlier_cutoffs_only_with_enough_history():
-    from shoplens.forward import over_time
+    from retail_analysis.forward import over_time
     sales = make_shop()
     checks = over_time(sales, days_held_back=60)
     cutoffs = checks["cutoff"].unique()

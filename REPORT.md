@@ -1,6 +1,6 @@
 # What three shops' sales say about their customers
 
-*A report on ShopLens: customer segmentation and market basket analysis, run on three sets of sales and checked against what happened next.*
+*Customer segmentation and market basket analysis, run on three sets of sales and checked against what happened next.*
 
 ## Summary
 

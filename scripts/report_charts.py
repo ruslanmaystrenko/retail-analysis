@@ -9,10 +9,10 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from shoplens.clean import SHOPS, load, open_shop
-from shoplens.forward import groups_next, over_time, split
-from shoplens.market_basket import families, pairs
-from shoplens.segmentation import GROUPS, by_group, group, summarize
+from retail_analysis.clean import SHOPS, load, open_shop
+from retail_analysis.forward import groups_next, over_time, split
+from retail_analysis.market_basket import families, pairs
+from retail_analysis.segmentation import GROUPS, by_group, group, summarize
 
 plt.style.use("dark_background")
 plt.rcParams.update({"figure.facecolor": "black", "axes.facecolor": "black", "axes.edgecolor": "#3a3b3e", "axes.grid": True, "grid.color": "#1c1c1e",

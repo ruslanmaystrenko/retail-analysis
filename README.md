@@ -1,4 +1,4 @@
-# ShopLens
+# Retail Analysis
 
 **Customer segmentation** and **market basket analysis** for any file of sales, with a check on whether the results hold up on later sales.
 
@@ -66,7 +66,7 @@ pip install -e .
 python -m streamlit run app.py
 ```
 
-On Windows, double click `ShopLens.bat`.
+On Windows, double click `RetailAnalysis.bat`.
 
 Pick one of the three shops in the sidebar, or upload your own csv or Excel file and match seven columns. Every tab rebuilds for that data.
 
@@ -80,10 +80,10 @@ Pick one of the three shops in the sidebar, or upload your own csv or Excel file
 
 | Path | What it holds |
 | --- | --- |
-| `src/shoplens/clean.py` | Loads a file and takes returns off the sales they undo |
-| `src/shoplens/segmentation.py` | Customer segmentation |
-| `src/shoplens/market_basket.py` | Market basket analysis |
-| `src/shoplens/forward.py` | The check against later sales |
+| `src/retail_analysis/clean.py` | Loads a file and takes returns off the sales they undo |
+| `src/retail_analysis/segmentation.py` | Customer segmentation |
+| `src/retail_analysis/market_basket.py` | Market basket analysis |
+| `src/retail_analysis/forward.py` | The check against later sales |
 | `notebooks/` | Five notebooks: cleaning, customer segmentation, market basket analysis, the forward check, and all three shops side by side |
 | `app.py` | The app |
 | `tests/` | Thirteen tests on a small made up shop |

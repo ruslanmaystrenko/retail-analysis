@@ -1,4 +1,4 @@
-"""ShopLens: customer segmentation and market basket analysis for any file of sales.
+"""Retail Analysis: customer segmentation and market basket analysis for any file of sales.
 
 Run it with:  python -m streamlit run app.py
 """
@@ -10,10 +10,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from shoplens.clean import SHOPS, clean, load
-from shoplens.forward import groups_next, over_time, pairs_next
-from shoplens.market_basket import families, pairs, rules
-from shoplens.segmentation import GROUPS, by_group, group, profile, repeat_buying, scores, summarize
+from retail_analysis.clean import SHOPS, clean, load
+from retail_analysis.forward import groups_next, over_time, pairs_next
+from retail_analysis.market_basket import families, pairs, rules
+from retail_analysis.segmentation import GROUPS, by_group, group, profile, repeat_buying, scores, summarize
 
 WHITE, SILVER, GREY, JADE = "#f2f2f0", "#d4d6da", "#8d8d90", "#5fd0a0"
 COLORS = dict(zip(GROUPS, ["#7fb4d8", JADE, "#9fd9bd", WHITE, SILVER, "#c9a25a", GREY]))
@@ -21,7 +21,7 @@ PALETTE = [JADE, WHITE, "#c9a25a", "#9fd9bd", SILVER, "#e0787a", "#7fb4d8", GREY
 NEEDED = {"order": "Order number", "customer": "Customer", "product": "Product code", "name": "Product name",
           "quantity": "Quantity", "price": "Price each", "when": "Date"}
 
-st.set_page_config("ShopLens", layout="wide")
+st.set_page_config("Retail Analysis", layout="wide")
 st.markdown("<style>[data-testid='stElementToolbar']{display:none} .block-container{padding-top:3.5rem}</style>", unsafe_allow_html=True)
 
 
@@ -55,7 +55,7 @@ check_over_time = st.cache_data(over_time, show_spinner="Repeating the check at 
 
 # ---- Sidebar: which sales to look at -------------------------------------------------
 with st.sidebar:
-    st.title("ShopLens")
+    st.title("Retail Analysis")
     st.caption("Customer segmentation and market basket analysis")
     picked_shop = st.selectbox("Demo shop", list(SHOPS))
     upload = st.file_uploader("Or your own sales file", type=["csv", "xlsx"], help="One row per product on an order.")
