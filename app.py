@@ -62,6 +62,11 @@ with st.sidebar:
     st.caption("Customer segmentation and market basket analysis")
     picked_shop = st.selectbox("Demo shop", sorted(SHOPS, key=lambda name: ["Amazon", "US", "UK"].index(name.split()[0])))
     upload = st.file_uploader("Or your own sales file", type=["csv", "xlsx"], help="One row per product on an order.")
+    st.caption("Your file needs one row for each product on an order, with these seven columns. They can have any names, and you match them after uploading.")
+    st.caption("  \n".join(f"**{label}**: {hint}" for label, hint in [
+        ("Order number", "the same on every row of one order"), ("Customer", "an id or name that stays the same for a customer"),
+        ("Product code", "an id for the product"), ("Product name", "what to show in charts"),
+        ("Quantity", "units sold, negative for a return"), ("Price each", "price of one unit"), ("Date", "when the order was placed")]))
     if upload:
         header = list((pd.read_csv if upload.name.endswith(".csv") else pd.read_excel)(upload, nrows=0).columns)
         upload.seek(0)
@@ -169,9 +174,9 @@ with segments:
         recent, often = scores(customers)
         count = pd.crosstab(recent, often)
         owner = customers["group"].replace("Big spenders", "Best customers").groupby([recent, often]).agg(lambda g: g.mode()[0]).unstack()
-        fig = go.Figure(go.Heatmap(z=owner.map(GROUPS[1:].index).to_numpy(), x=count.columns, y=count.index, text=count.to_numpy(), texttemplate="%{text:,}",
+        fig = go.Figure(go.Heatmap(z=owner.apply(lambda column: column.map({g: i for i, g in enumerate(GROUPS[1:])})).to_numpy(), x=count.columns, y=count.index, text=count.to_numpy(), texttemplate="%{text:,}",
                                    textfont_color="black", colorscale=[[i / 5, COLORS[g]] for i, g in enumerate(GROUPS[1:])], zmin=0, zmax=5, showscale=False,
-                                   xgap=3, ygap=3, customdata=owner.to_numpy(), hovertemplate="%{customdata}<extra></extra>"))
+                                   xgap=3, ygap=3, customdata=owner.fillna("No customers").to_numpy(), hovertemplate="%{customdata}<extra></extra>"))
         chart(fig.update_xaxes(title="How often they buy (5 is most often)", dtick=1).update_yaxes(title="How recently (5 is most recent)", dtick=1), 400)
     with right:
         st.subheader("Do customers come back?")
